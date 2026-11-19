@@ -36,5 +36,6 @@ getmyancestors = ["fstogedcom.png"]
 
 [project.scripts]
 getmyancestors = "getmyancestors.getmyancestors:main"
+getmyancestors-all = "getmyancestors.complete_family:main"
 mergemyancestors = "getmyancestors.mergemyancestors:main"
 fstogedcom = "getmyancestors.fstogedcom:main"
