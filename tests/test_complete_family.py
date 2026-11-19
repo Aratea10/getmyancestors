@@ -6,6 +6,7 @@ from pathlib import Path
 from getmyancestors.complete_family import (
     Checkpoint,
     ReplaySession,
+    assemble,
     crawl,
     related_people,
 )
@@ -14,9 +15,11 @@ from getmyancestors.complete_family import (
 class FakeSession:
     def __init__(self):
         self.calls = []
+        self.lang = "en"
+        self.display_name = "Test user"
         self.records = {
             "AAAA-111": {
-                "persons": [{"id": "AAAA-111"}],
+                "persons": [{"id": "AAAA-111", "living": False, "names": []}],
                 "relationships": [
                     {
                         "id": "couple-1",
@@ -26,7 +29,7 @@ class FakeSession:
                 ],
             },
             "BBBB-222": {
-                "persons": [{"id": "BBBB-222"}],
+                "persons": [{"id": "BBBB-222", "living": False, "names": []}],
                 "childAndParentsRelationships": [
                     {
                         "id": "parent-1",
@@ -36,7 +39,7 @@ class FakeSession:
                 ],
             },
             "CCCC-333": {
-                "persons": [{"id": "CCCC-333"}],
+                "persons": [{"id": "CCCC-333", "living": False, "names": []}],
                 "childAndParentsRelationships": [
                     {
                         "id": "parent-2",
@@ -45,11 +48,16 @@ class FakeSession:
                     }
                 ],
             },
-            "DDDD-444": {"persons": [{"id": "DDDD-444"}]},
+            "DDDD-444": {"persons": [{"id": "DDDD-444", "living": False, "names": []}]},
         }
+
+    def _(self, text):
+        return text
 
     def get_url(self, url, headers=None, no_api=False):
         self.calls.append(url)
+        if url.startswith("/platform/tree/couple-relationships/"):
+            return {"relationships": [{"facts": []}]}
         return self.records.get(url.split("=")[-1])
 
 
@@ -136,6 +144,29 @@ class CompleteFamilyTests(unittest.TestCase):
                 self.assertEqual(len(response["relationships"]), 1)
                 self.assertEqual(len(response["childAndParentsRelationships"]), 1)
                 self.assertEqual(session.calls, [])
+            finally:
+                store.close()
+
+    def test_gedcom_contains_relatives_from_the_spouses_family(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Checkpoint(Path(folder) / "family.sqlite")
+            session = FakeSession()
+            try:
+                store.seed(["AAAA-111"])
+                self.assertTrue(crawl(store, session, max_people=0, progress=0))
+                output = Path(folder) / "family.ged"
+                people, families = assemble(
+                    store, session, output, no_sources=True, no_notes=True
+                )
+                gedcom = output.read_text(encoding="utf-8")
+                self.assertEqual(people, 4)
+                self.assertGreaterEqual(families, 2)
+                self.assertEqual(gedcom.count(" INDI\\n"), 4)
+                self.assertIn("1 _FSFTID CCCC-333", gedcom)
+                self.assertIn("1 _FSFTID DDDD-444", gedcom)
+                self.assertIn("1 CHIL @I", gedcom)
+                self.assertIn("1 HUSB @I", gedcom)
+                self.assertTrue(gedcom.endswith("0 TRLR\\n"))
             finally:
                 store.close()
 
