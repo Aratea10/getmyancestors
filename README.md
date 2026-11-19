@@ -81,6 +81,48 @@ mergemyancestors -i file1.ged file2.ged -o out.ged
 ```
 
 
+
+All connected relatives (experimental)
+======================================
+
+This additional command explores all available FamilySearch relationships in
+every direction: parents, children, spouses, the parents of spouses, their
+children and so on. It does not require a generation count and does not assume
+that the tree ends at a given ancestor.
+
+Unlike `getmyancestors -a ... -d ... -m`, this command repeatedly visits the
+relatives of each new person it discovers. FamilySearch may connect a huge
+number of people, and some records may be inaccessible or unavailable. It
+cannot guarantee that every person in FamilySearch will be reachable.
+
+Install this development branch in an isolated environment, for example with
+`uvx --python 3.12 --from "git+https://github.com/Aratea10/getmyancestors.git@feat/complete-family-traversal" getmyancestors-all`.
+
+Example:
+
+```sh
+getmyancestors-all -i LVXP-TH5 -o ~/Downloads/familysearch_extendido.ged
+```
+
+The default is to **pause after 1,000 people** as a safety precaution. To keep
+exploring, run the same command again with `--max-people 5000`, or use
+`--max-people 0` to run without a person cap (which could be enormous).
+These are limits on downloaded people, **not** generations.
+
+An SQLite checkpoint is automatically stored next to the GEDCOM using the
+same name and `.sqlite` extension. Every successful person response is saved;
+the tool resumes from that file on a later run and creates a GEDCOM snapshot
+from the people retrieved so far. If stopped with Ctrl+C, it attempts to
+export the current snapshot. The checkpoint is private family-history data:
+keep it safe and do not commit it to Git.
+
+Use the **same output path** on subsequent runs to reuse the checkpoint.
+The user name and password are requested interactively and are not stored in
+the checkpoint. Requests are rate-limited by default to two per second.
+This is an experimental feature; verify the resulting GEDCOM before using it
+as the only copy of your research.
+
+
 Support
 =======
 
